@@ -39,6 +39,59 @@
 3. **Единая точка входа** - все запросы через API Gateway
 4. **Микросервисная архитектура** готовая для Kubernetes
 
+# Задание 2
+
+### 1. Proxy
+
+Команда КиноБездны уже выделила сервис метаданных о фильмах movies и вам необходимо реализовать бесшовный переход с применением паттерна Strangler Fig в части реализации прокси-сервиса (API Gateway), с помощью которого можно будет постепенно переключать траффик, используя фиче-флаг.
+
+Реализуйте сервис на любом языке программирования в ./src/microservices/proxy.
+Конфигурация для запуска сервиса через docker-compose уже добавлена
+
+```yaml
+proxy-service:
+  build:
+    context: ./src/microservices/proxy
+    dockerfile: Dockerfile
+  container_name: cinemaabyss-proxy-service
+  depends_on:
+    - monolith
+    - movies-service
+    - events-service
+  ports:
+    - "8000:8000"
+  environment:
+    PORT: 8000
+    MONOLITH_URL: http://monolith:8080
+    #монолит
+    MOVIES_SERVICE_URL: http://movies-service:8081 #сервис movies
+    EVENTS_SERVICE_URL: http://events-service:8082
+    GRADUAL_MIGRATION: "true" # вкл/выкл простого фиче-флага
+    MOVIES_MIGRATION_PERCENT: "50" # процент миграции
+  networks:
+    - cinemaabyss-network
+```
+
+- После реализации запустите postman тесты - они все должны быть зеленые (кроме events).
+- Отправьте запросы к API Gateway:
+  ```bash
+  curl http://localhost:8000/api/movies
+  ```
+- Протестируйте постепенный переход, изменив переменную окружения MOVIES_MIGRATION_PERCENT в файле docker-compose.yml.
+
+### 2. Kafka
+
+Вам как архитектуру нужно также проверить гипотезу насколько просто реализовать применение Kafka в данной архитектуре.
+
+Для этого нужно сделать MVP сервис events, который будет при вызове API создавать и сам же читать сообщения в топике Kafka.
+
+    - Разработайте сервис на любом языке программирования с consumer'ами и producer'ами.
+    - Реализуйте простой API, при вызове которого будут создаваться события User/Payment/Movie и обрабатываться внутри сервиса с записью в лог
+    - Добавьте в docker-compose новый сервис, kafka там уже есть
+
+Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman
+Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090
+
 ## Ответ на Задание 2
 
 Реализован прокси-сервис (API Gateway) с использованием паттерна Strangler Fig для постепенной миграции от монолита к микросервисам.
@@ -179,59 +232,6 @@ curl -X POST -H "Content-Type: application/json" \
 - ✅ **Events Microservice**: 4/4 теста (теперь работает!)
 - ✅ **Proxy Service**: 3/3 теста
 - 🎯 **100% успешность** - все сервисы полностью функциональны
-
-# Задание 2
-
-### 1. Proxy
-
-Команда КиноБездны уже выделила сервис метаданных о фильмах movies и вам необходимо реализовать бесшовный переход с применением паттерна Strangler Fig в части реализации прокси-сервиса (API Gateway), с помощью которого можно будет постепенно переключать траффик, используя фиче-флаг.
-
-Реализуйте сервис на любом языке программирования в ./src/microservices/proxy.
-Конфигурация для запуска сервиса через docker-compose уже добавлена
-
-```yaml
-proxy-service:
-  build:
-    context: ./src/microservices/proxy
-    dockerfile: Dockerfile
-  container_name: cinemaabyss-proxy-service
-  depends_on:
-    - monolith
-    - movies-service
-    - events-service
-  ports:
-    - "8000:8000"
-  environment:
-    PORT: 8000
-    MONOLITH_URL: http://monolith:8080
-    #монолит
-    MOVIES_SERVICE_URL: http://movies-service:8081 #сервис movies
-    EVENTS_SERVICE_URL: http://events-service:8082
-    GRADUAL_MIGRATION: "true" # вкл/выкл простого фиче-флага
-    MOVIES_MIGRATION_PERCENT: "50" # процент миграции
-  networks:
-    - cinemaabyss-network
-```
-
-- После реализации запустите postman тесты - они все должны быть зеленые (кроме events).
-- Отправьте запросы к API Gateway:
-  ```bash
-  curl http://localhost:8000/api/movies
-  ```
-- Протестируйте постепенный переход, изменив переменную окружения MOVIES_MIGRATION_PERCENT в файле docker-compose.yml.
-
-### 2. Kafka
-
-Вам как архитектуру нужно также проверить гипотезу насколько просто реализовать применение Kafka в данной архитектуре.
-
-Для этого нужно сделать MVP сервис events, который будет при вызове API создавать и сам же читать сообщения в топике Kafka.
-
-    - Разработайте сервис на любом языке программирования с consumer'ами и producer'ами.
-    - Реализуйте простой API, при вызове которого будут создаваться события User/Payment/Movie и обрабатываться внутри сервиса с записью в лог
-    - Добавьте в docker-compose новый сервис, kafka там уже есть
-
-Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman
-Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090
 
 # Задание 3
 
@@ -480,6 +480,41 @@ minikube tunnel
 #### Шаг 3
 
 Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и скриншот вывода event-service после вызова тестов.
+
+## Ответ на Задание 3
+
+### Часть 1: Настройка CI/CD
+
+Реализован полный CI/CD pipeline для сборки и публикации Docker образов всех микросервисов в GitHub Container Registry.
+
+**Доработки в GitHub Actions:**
+
+**1. `docker-build-push.yml` - добавлена сборка новых сервисов:**
+
+- Events Service (`ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/events-service`)
+- Proxy Service (`ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/proxy-service`)
+
+**2. Результаты тестирования CI/CD:**
+
+- ✅ **Docker Build and Push**: Все 4 сервиса успешно собраны и опубликованы
+- ✅ **API Tests**: 22/22 теста прошли успешно в CI/CD среде
+- ✅ **GitHub Container Registry**: Образы доступны для Kubernetes деплоя
+
+### Часть 2: Настройка Kubernetes
+
+**Созданные манифесты:**
+
+- ✅ `events-service.yaml` - Deployment + Service для Events Service
+- ✅ `proxy-service.yaml` - Deployment + Service для Proxy Service
+- ✅ Обновленный `configmap.yaml` - конфигурация для всех сервисов
+- ✅ Обновленный `ingress.yaml` - единая точка входа через proxy-service
+
+**Архитектура готова к деплою:**
+
+- **Единая точка входа**: `https://cinemaabyss.example.com/` → proxy-service
+- **Strangler Fig**: настраивается через `MOVIES_MIGRATION_PERCENT`
+- **Events API**: доступен через `/api/events` для тестирования
+- **Docker Registry**: настроен доступ к GitHub Container Registry
 
 # Задание 4
 
