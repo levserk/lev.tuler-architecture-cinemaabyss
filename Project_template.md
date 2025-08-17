@@ -516,6 +516,61 @@ minikube tunnel
 - **Events API**: доступен через `/api/events` для тестирования
 - **Docker Registry**: настроен доступ к GitHub Container Registry
 
+### Результаты успешного деплоя:
+
+**1. Все поды запущены и работают:**
+
+```bash
+NAME                              READY   STATUS    RESTARTS   AGE
+events-service-859659d56d-kj28c   1/1     Running   0          35m
+kafka-0                           1/1     Running   0          6m35s
+monolith-7db5d974df-5bjlq         1/1     Running   0          20m
+movies-service-f499b46f8-8smdc    1/1     Running   0          20m
+postgres-0                        1/1     Running   0          21m
+proxy-service-5fd4d7f7c-ddll5     1/1     Running   0          35m
+zookeeper-0                       1/1     Running   0          6m35s
+```
+
+**2. API работает через Ingress:**
+
+```bash
+curl -k https://cinemaabyss.example.com/api/movies
+# Возвращает JSON с фильмами ✅
+```
+
+**3. Postman тесты в Kubernetes - 100% успех:**
+
+```
+Newman run completed!
+Total requests: 22
+Failed requests: 0
+Total assertions: 42
+Failed assertions: 0
+```
+
+**Результат по категориям:**
+
+- ✅ **Monolith Service**: 12/12 тестов
+- ✅ **Movies Microservice**: 4/4 теста
+- ✅ **Events Microservice**: 4/4 теста
+- ✅ **Proxy Service**: 3/3 теста
+
+**4. Events Service логи показывают активные consumer-ы:**
+
+```
+🔄 Consumer for topic 'movies' is running (waiting for messages...)
+🔄 Consumer for topic 'users' is running (waiting for messages...)
+🔄 Consumer for topic 'payments' is running (waiting for messages...)
+```
+
+**Скриншоты результатов:**
+
+**API работает через HTTPS:**
+![Результат вызова API](screenshots/curl.png)
+
+**Events Service логи с активными consumer-ами:**
+![Логи Events Service](screenshots/events-service%20logs.png)
+
 # Задание 4
 
 Для простоты дальнейшего обновления и развертывания вам как архитектуру необходимо так же реализовать helm-чарты для прокси-сервиса и проверить работу
