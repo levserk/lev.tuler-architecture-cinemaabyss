@@ -5,7 +5,7 @@ global:
 
 # Image pull secrets
 imagePullSecrets:
-  dockerconfigjson: ewoJImF1dGhzIjogewoJCSJnaGNyLmlvIjogewoJCQkiYXV0aCI6
+  dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7ImF1dGgiOiJiR1YyYzJWeWF6cG5hSEJmTmxRelUydGphVlZtVkZKMVQxRkRkM1pCVFUwMGMwRTViR0p5VlRCVE1YcHdSM2RWIn19fQo=
 # Database configuration
 database:
   host: postgres
@@ -33,7 +33,7 @@ database:
 monolith:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/monolith
+    repository: ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/monolith
     tag: latest
     pullPolicy: Always
   replicas: 1
@@ -53,7 +53,7 @@ monolith:
 proxyService:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/proxy-service
+    repository: ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/proxy-service
     tag: latest
     pullPolicy: Always
   replicas: 1
@@ -73,7 +73,7 @@ proxyService:
 moviesService:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/movies-service
+    repository: ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/movies-service
     tag: latest
     pullPolicy: Always
   replicas: 1
@@ -93,7 +93,7 @@ moviesService:
 eventsService:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/events-service
+    repository: ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/events-service
     tag: latest
     pullPolicy: Always
   replicas: 1
@@ -113,19 +113,19 @@ eventsService:
 kafka:
   enabled: true
   image:
-    repository: wurstmeister/kafka
-    tag: 2.13-2.7.0
+    repository: bitnami/kafka
+    tag: 3.4
     pullPolicy: IfNotPresent
   replicas: 1
   resources:
     limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
-      cpu: 200m
+      cpu: 300m
       memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
   persistence:
-    enabled: true
+    enabled: false
     size: 5Gi
     accessMode: ReadWriteOnce
   topics:
@@ -143,19 +143,19 @@ kafka:
 zookeeper:
   enabled: true
   image:
-    repository: wurstmeister/zookeeper
-    tag: latest
+    repository: bitnami/zookeeper
+    tag: 3.8
     pullPolicy: IfNotPresent
   replicas: 1
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
   persistence:
-    enabled: true
+    enabled: false
     size: 1Gi
     accessMode: ReadWriteOnce
 
