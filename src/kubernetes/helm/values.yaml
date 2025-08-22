@@ -15,15 +15,15 @@ database:
   password: cG9zdGdyZXNfcGFzc3dvcmQ=
   image:
     repository: postgres
-    tag: 14
+    tag: 14-alpine
     pullPolicy: IfNotPresent
   resources:
     limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
       cpu: 500m
       memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
   persistence:
     enabled: true
     size: 10Gi
@@ -39,10 +39,10 @@ monolith:
   replicas: 1
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 300m
+      memory: 256Mi
     requests:
-      cpu: 100m
+      cpu: 50m
       memory: 128Mi
   service:
     port: 8080
@@ -59,11 +59,11 @@ proxyService:
   replicas: 1
   resources:
     limits:
-      cpu: 300m
-      memory: 256Mi
-    requests:
-      cpu: 100m
+      cpu: 200m
       memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
   service:
     port: 80
     targetPort: 8000
@@ -79,11 +79,11 @@ moviesService:
   replicas: 1
   resources:
     limits:
-      cpu: 300m
-      memory: 256Mi
-    requests:
-      cpu: 100m
+      cpu: 200m
       memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
   service:
     port: 8081
     targetPort: 8081
@@ -99,11 +99,11 @@ eventsService:
   replicas: 1
   resources:
     limits:
-      cpu: 300m
-      memory: 256Mi
-    requests:
-      cpu: 100m
+      cpu: 200m
       memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
   service:
     port: 8082
     targetPort: 8082
@@ -114,7 +114,7 @@ kafka:
   enabled: true
   image:
     repository: bitnami/kafka
-    tag: 3.4
+    tag: 3.4-debian-11
     pullPolicy: IfNotPresent
   replicas: 1
   resources:

@@ -122,15 +122,57 @@ kubectl get pods -n cinemaabyss
 
 # Ответ на Задание 4
 
-**Helm charts:** Обновил `values.yaml` со своими образами, заполнил шаблоны `proxy-service.yaml` и `events-service.yaml`
+## Реализация Helm-чартов
 
-**Деплой:** `helm install cinemaabyss src/kubernetes/helm --namespace cinemaabyss --create-namespace`
+**Исправление синтаксических ошибок:**
 
-**Результат:**
+- Исправлен синтаксис шаблонов в `configmap.yaml`: `{ { .Values... } }` → `{{ .Values... }}`
+- Исправлена структура YAML в переменной `MOVIES_MIGRATION_PERCENT`
 
-- Все 7 подов запущены ✅
-- `https://cinemaabyss.example.com/api/movies` работает ✅
-- Postman тесты проходят ✅
+**Настройка values.yaml:**
+
+- Образы всех сервисов: `ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/[service]:latest`
+- Конфигурация ресурсов для всех компонентов
+- Настройка Kafka/ZooKeeper с Bitnami образами
+- Переменные для Strangler Fig: `gradualMigration: "true"`, `moviesMigrationPercent: "100"`
+
+**Структура Helm chart:**
+
+```
+helm/
+├── Chart.yaml
+├── values.yaml
+└── templates/
+    ├── configmap.yaml          # Конфигурация приложения
+    ├── secret.yaml             # Пароли и секреты
+    ├── ingress.yaml            # Маршрутизация трафика
+    ├── services/               # Все микросервисы
+    │   ├── proxy-service.yaml
+    │   ├── events-service.yaml
+    │   ├── movies-service.yaml
+    │   ├── monolith.yaml
+    │   └── postgres.yaml
+    └── kafka/
+        └── kafka.yaml          # Kafka + ZooKeeper
+```
+
+**Валидация и деплой:**
+
+```bash
+# Проверка синтаксиса
+helm template cinemaabyss src/kubernetes/helm --dry-run
+
+# Установка
+helm install cinemaabyss src/kubernetes/helm --namespace cinemaabyss --create-namespace
+```
+
+**Результаты:**
+
+- ✅ Helm chart валидируется без ошибок
+- ✅ Все 7 подов развертываются и запускаются
+- ✅ API доступен: `https://cinemaabyss.example.com/api/movies`
+- ✅ Events API работает: `https://cinemaabyss.example.com/api/events/health`
+- ✅ Postman тесты проходят успешно
 
 **Скриншоты развертывания:**
 ![Статус подов](screenshots/helm%20up.png)
