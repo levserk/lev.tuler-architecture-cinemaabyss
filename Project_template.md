@@ -67,15 +67,54 @@ curl http://localhost:8000/api/movies  # Работает через proxy
 
 # Ответ на Задание 3
 
-**CI/CD:** Доработал `docker-build-push.yml` для сборки proxy и events сервисов в GitHub Container Registry
+## Часть 1. Настройка CI/CD
 
-**Kubernetes:** Создал манифесты `events-service.yaml` и `proxy-service.yaml`, настроил ingress для доступа к событиям
+**Доработка GitHub Actions:**
 
-**Деплой по шагам 1-12:**
+- Добавил сборку `proxy` и `events` сервисов в `.github/workflows/docker-build-push.yml`
+- Настроил push образов в GitHub Container Registry
+- Все workflow проходят успешно ✅
+- Образы доступны в registry для Kubernetes деплоя
 
-- Все 7 подов запущены
-- API работает: `https://cinemaabyss.example.com/api/movies`
-- Newman тесты: 22/22 успешны
+## Часть 2. Настройка Kubernetes
+
+**Созданные манифесты:**
+
+1. **`events-service.yaml`** - Deployment + Service для events сервиса
+
+   - Образ: `ghcr.io/username/events-service:latest`
+   - Порт: 8082
+   - Переменные: `KAFKA_BROKERS`, `PORT`
+
+2. **`proxy-service.yaml`** - Deployment + Service для proxy сервиса
+
+   - Образ: `ghcr.io/username/proxy-service:latest`
+   - Порт: 8000
+   - Переменные: `MOVIES_MIGRATION_PERCENT`, URLs сервисов
+
+3. **`ingress.yaml`** - маршрутизация трафика
+   - `cinemaabyss.example.com/` → proxy-service:8000
+   - `cinemaabyss.example.com/api/events` → events-service:8082
+
+**Пошаговый деплой:**
+
+```bash
+# 1. Создание namespace
+kubectl create namespace cinemaabyss
+
+# 2. Применение манифестов
+kubectl apply -f src/kubernetes/
+
+# 3. Проверка статуса
+kubectl get pods -n cinemaabyss
+```
+
+**Результаты деплоя:**
+
+- Все 7 подов запущены и работают
+- API доступен: `https://cinemaabyss.example.com/api/movies`
+- Events API работает: `https://cinemaabyss.example.com/api/events/health`
+- Newman тесты: 22/22 успешны (events тесты проходят)
 
 **Скриншоты:**
 ![API вызов](screenshots/curl.png)
