@@ -1,17 +1,22 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/segmentio/kafka-go"
 )
 
 type EventsService struct {
 	kafkaBrokers string
+	writers      map[string]*kafka.Writer
+	readers      map[string]*kafka.Reader
 }
 
 type MovieEvent struct {
@@ -46,8 +51,11 @@ func main() {
 	
 	service := &EventsService{
 		kafkaBrokers: brokers,
+		writers:      make(map[string]*kafka.Writer),
+		readers:      make(map[string]*kafka.Reader),
 	}
 
+	service.initKafka()
 	go service.startConsumers()
 
 	router := mux.NewRouter()
@@ -78,7 +86,7 @@ func (s *EventsService) createMovieEvent(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.publishEvent("movies", event); err != nil {
+	if err := s.publishEvent("movie-events", event); err != nil {
 		log.Printf("Failed to publish movie event: %v", err)
 		http.Error(w, "Failed to publish event", http.StatusInternalServerError)
 		return
@@ -100,7 +108,7 @@ func (s *EventsService) createUserEvent(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := s.publishEvent("users", event); err != nil {
+	if err := s.publishEvent("user-events", event); err != nil {
 		log.Printf("Failed to publish user event: %v", err)
 		http.Error(w, "Failed to publish event", http.StatusInternalServerError)
 		return
@@ -122,7 +130,7 @@ func (s *EventsService) createPaymentEvent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := s.publishEvent("payments", event); err != nil {
+	if err := s.publishEvent("payment-events", event); err != nil {
 		log.Printf("Failed to publish payment event: %v", err)
 		http.Error(w, "Failed to publish event", http.StatusInternalServerError)
 		return
@@ -137,20 +145,61 @@ func (s *EventsService) createPaymentEvent(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+func (s *EventsService) initKafka() {
+	topics := []string{"movie-events", "user-events", "payment-events"}
+	
+	for _, topic := range topics {
+		writer := &kafka.Writer{
+			Addr:     kafka.TCP(s.kafkaBrokers),
+			Topic:    topic,
+			Balancer: &kafka.LeastBytes{},
+		}
+		s.writers[topic] = writer
+		
+		reader := kafka.NewReader(kafka.ReaderConfig{
+			Brokers: []string{s.kafkaBrokers},
+			Topic:   topic,
+			GroupID: "events-service-group",
+		})
+		s.readers[topic] = reader
+		
+		log.Printf("✅ Kafka writer and reader initialized for topic: %s", topic)
+	}
+}
+
 func (s *EventsService) publishEvent(topic string, event interface{}) error {
 	eventData, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("📢 Event published to topic '%s' (simulated): %s", topic, string(eventData))
-	log.Printf("🎯 Kafka brokers: %s", s.kafkaBrokers)
-	
+	writer, exists := s.writers[topic]
+	if !exists {
+		log.Printf("❌ Writer not found for topic: %s", topic)
+		return fmt.Errorf("writer not found for topic: %s", topic)
+	}
+
+	message := kafka.Message{
+		Key:   []byte(topic),
+		Value: eventData,
+		Time:  time.Now(),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = writer.WriteMessages(ctx, message)
+	if err != nil {
+		log.Printf("❌ Failed to write message to topic %s: %v", topic, err)
+		return err
+	}
+
+	log.Printf("📢 Event published to topic '%s': %s", topic, string(eventData))
 	return nil
 }
 
 func (s *EventsService) startConsumers() {
-	topics := []string{"movies", "users", "payments"}
+	topics := []string{"movie-events", "user-events", "payment-events"}
 	
 	log.Printf("🎧 Starting consumers for topics: %v", topics)
 	log.Printf("🔗 Kafka brokers: %s", s.kafkaBrokers)
@@ -161,14 +210,67 @@ func (s *EventsService) startConsumers() {
 }
 
 func (s *EventsService) consumeTopic(topic string) {
-	log.Printf("🎧 Consumer started for topic: %s (simulated)", topic)
+	reader, exists := s.readers[topic]
+	if !exists {
+		log.Printf("❌ Reader not found for topic: %s", topic)
+		return
+	}
+	
+	log.Printf("🎧 Consumer started for topic: %s", topic)
 	
 	for {
-		select {
-		case <-time.After(5 * time.Second):
-			log.Printf("🔄 Consumer for topic '%s' is running (waiting for messages...)", topic)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		message, err := reader.ReadMessage(ctx)
+		cancel()
+		
+		if err != nil {
+			if err == context.DeadlineExceeded {
+				log.Printf("🔄 Consumer for topic '%s' is running (waiting for messages...)", topic)
+				continue
+			}
+			log.Printf("❌ Error reading message from topic %s: %v", topic, err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		
+		log.Printf("📨 Message consumed from topic '%s': %s", topic, string(message.Value))
+		
+		switch topic {
+		case "movie-events":
+			s.processMovieEvent(message.Value)
+		case "user-events":
+			s.processUserEvent(message.Value)
+		case "payment-events":
+			s.processPaymentEvent(message.Value)
 		}
 	}
+}
+
+func (s *EventsService) processMovieEvent(data []byte) {
+	var event MovieEvent
+	if err := json.Unmarshal(data, &event); err != nil {
+		log.Printf("❌ Error unmarshaling movie event: %v", err)
+		return
+	}
+	log.Printf("🎬 Processing movie event: %+v", event)
+}
+
+func (s *EventsService) processUserEvent(data []byte) {
+	var event UserEvent
+	if err := json.Unmarshal(data, &event); err != nil {
+		log.Printf("❌ Error unmarshaling user event: %v", err)
+		return
+	}
+	log.Printf("👤 Processing user event: %+v", event)
+}
+
+func (s *EventsService) processPaymentEvent(data []byte) {
+	var event PaymentEvent
+	if err := json.Unmarshal(data, &event); err != nil {
+		log.Printf("❌ Error unmarshaling payment event: %v", err)
+		return
+	}
+	log.Printf("💳 Processing payment event: %+v", event)
 }
 
 func getEnv(key, defaultValue string) string {

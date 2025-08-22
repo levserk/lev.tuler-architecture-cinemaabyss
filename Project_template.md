@@ -15,18 +15,55 @@
 
 # Ответ на Задание 2
 
-**1. Proxy Service (Strangler Fig):**
+## Часть 1. Реализация прокси-сервиса
 
-- API Gateway на порту 8000
-- Постепенная миграция трафика через `MOVIES_MIGRATION_PERCENT`
-- Все тесты proxy работают
+**Proxy Service (Strangler Fig pattern):**
 
-**2. Events Service (Kafka MVP):**
+- API Gateway на порту 8000 с маршрутизацией запросов
+- Постепенная миграция трафика через `MOVIES_MIGRATION_PERCENT` (50% по умолчанию)
+- Прозрачное проксирование к monolith и movies-service
+- Health check endpoint: `/health`
 
-- Producer/Consumer для топиков movies, users, payments
-- API endpoints: `/api/events/health`, `/api/events/movie`, `/api/events/user`, `/api/events/payment`
+**Тестирование:**
 
-**Результат:** все Postman тесты зеленые (22/22) ✅
+```bash
+curl http://localhost:8000/api/movies  # Работает через proxy
+```
+
+## Часть 2. Реализация Kafka
+
+**Events Service (MVP с Producer/Consumer):**
+
+- Реальная интеграция с Kafka (библиотека `github.com/segmentio/kafka-go`)
+- Producer/Consumer для топиков: `movie-events`, `user-events`, `payment-events`
+- API endpoints:
+  - `/api/events/health` - проверка здоровья
+  - `/api/events/movie` - создание событий фильмов
+  - `/api/events/user` - создание пользовательских событий
+  - `/api/events/payment` - создание событий платежей
+- Автосоздание топиков и consumer groups
+
+**Результаты тестирования:**
+
+![Postman тесты](screenshots/task2-test.png)
+
+**Все тесты зеленые:** 22/22 запроса успешно, 42/42 утверждения прошли
+
+**Kafka топики с сообщениями:**
+
+![Kafka UI топики](screenshots/task2-kafka.png)
+
+**Топики созданы автоматически:**
+
+- `movie-events`: 1 сообщение (153 Bytes)
+- `payment-events`: 1 сообщение (146 Bytes)
+- `user-events`: 1 сообщение (136 Bytes)
+
+**Архитектурные решения:**
+
+- Использованы Bitnami образы Kafka/ZooKeeper для кроссплатформенности
+- Реализован полный цикл: API → Producer → Kafka → Consumer → Логирование
+- Events service сам создает и читает сообщения (MVP требование)
 
 # Ответ на Задание 3
 
@@ -36,9 +73,9 @@
 
 **Деплой по шагам 1-12:**
 
-- Все 7 подов запущены ✅
-- API работает: `https://cinemaabyss.example.com/api/movies` ✅
-- Newman тесты: 22/22 успешны ✅
+- Все 7 подов запущены
+- API работает: `https://cinemaabyss.example.com/api/movies`
+- Newman тесты: 22/22 успешны
 
 **Скриншоты:**
 ![API вызов](screenshots/curl.png)
