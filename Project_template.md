@@ -53,11 +53,7 @@ curl http://localhost:8000/api/movies  # Работает через proxy
 
 ![Kafka UI топики](screenshots/task2-kafka.png)
 
-**Топики созданы автоматически:**
-
-- `movie-events`: 1 сообщение (153 Bytes)
-- `payment-events`: 1 сообщение (146 Bytes)
-- `user-events`: 1 сообщение (136 Bytes)
+Топики созданы автоматически
 
 **Архитектурные решения:**
 
@@ -73,7 +69,7 @@ curl http://localhost:8000/api/movies  # Работает через proxy
 
 - Добавил сборку `proxy` и `events` сервисов в `.github/workflows/docker-build-push.yml`
 - Настроил push образов в GitHub Container Registry
-- Все workflow проходят успешно ✅
+- Все workflow проходят успешно 
 - Образы доступны в registry для Kubernetes деплоя
 
 ## Часть 2. Настройка Kubernetes
@@ -124,11 +120,6 @@ kubectl get pods -n cinemaabyss
 
 ## Реализация Helm-чартов
 
-**Исправление синтаксических ошибок:**
-
-- Исправлен синтаксис шаблонов в `configmap.yaml`: `{ { .Values... } }` → `{{ .Values... }}`
-- Исправлена структура YAML в переменной `MOVIES_MIGRATION_PERCENT`
-
 **Настройка values.yaml:**
 
 - Образы всех сервисов: `ghcr.io/levserk/lev.tuler-architecture-cinemaabyss/[service]:latest`
@@ -168,11 +159,11 @@ helm install cinemaabyss src/kubernetes/helm --namespace cinemaabyss --create-na
 
 **Результаты:**
 
-- ✅ Helm chart валидируется без ошибок
-- ✅ Все 7 подов развертываются и запускаются
-- ✅ API доступен: `https://cinemaabyss.example.com/api/movies`
-- ✅ Events API работает: `https://cinemaabyss.example.com/api/events/health`
-- ✅ Postman тесты проходят успешно
+- Helm chart валидируется без ошибок
+- Все 7 подов развертываются и запускаются
+- API доступен: `https://cinemaabyss.example.com/api/movies`
+- Events API работает: `https://cinemaabyss.example.com/api/events/health`
+- Postman тесты проходят успешно
 
 **Скриншоты развертывания:**
 ![Статус подов](screenshots/helm%20up.png)
