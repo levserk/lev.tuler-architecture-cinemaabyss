@@ -1,0 +1,68 @@
+@startuml CinemaAbyss_ToBe_Architecture
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_TOP_DOWN()
+
+title Контейнерная диаграмма C4 – Целевая архитектура CinemaAbyss (To-Be)
+
+Person(mobile, "Mobile", "Мобильные устройства")
+Person(web, "Web", "Браузеры")
+Person(tv, "Smart TV", "Телевизоры")
+
+System_Boundary(sys, "CinemaAbyss System") {
+    Container(api, "API Gateway", "Go", "Единая точка входа")
+
+    Container(u_svc, "Users Service", "Go", "Пользователи")
+    Container(m_svc, "Movies Service", "Go", "Фильмы") 
+    Container(p_svc, "Payments Service", "Go", "Платежи")
+    Container(s_svc, "Subscriptions Service", "Go", "Подписки")
+
+    Container(kafka, "Apache Kafka", "Kafka", "Event Bus")
+
+    ContainerDb(u_db, "Users DB", "PostgreSQL", "Данные пользователей")
+    ContainerDb(m_db, "Movies DB", "PostgreSQL", "Данные фильмов")
+    ContainerDb(p_db, "Payments DB", "PostgreSQL", "Данные платежей") 
+    ContainerDb(s_db, "Subscriptions DB", "PostgreSQL", "Данные подписок")
+}
+
+System_Ext(rec, "Recommendation System", "ML рекомендации")
+System_Ext(pg,  "Payment Gateway", "Платежные системы")
+mobile -[hidden]down-> api
+api -[hidden]down-> u_svc
+u_svc -[hidden]right-> m_svc
+m_svc -[hidden]right-> p_svc
+p_svc -[hidden]right-> s_svc
+s_svc -[hidden]right-> kafka
+u_svc -[hidden]down-> u_db
+m_svc -[hidden]down-> m_db
+p_svc -[hidden]down-> p_db
+s_svc -[hidden]down-> s_db
+
+Rel(mobile, api, "HTTPS", "REST API")
+Rel(web,    api, "HTTPS", "REST API")
+Rel(tv,     api, "HTTPS", "REST API")
+
+Rel(api, u_svc, "HTTP", "/api/users")
+Rel(api, m_svc, "HTTP", "/api/movies")
+Rel(api, p_svc, "HTTP", "/api/payments")
+Rel(api, s_svc, "HTTP", "/api/subscriptions")
+
+Rel(u_svc, u_db, "SQL", "PostgreSQL")
+Rel(m_svc, m_db, "SQL", "PostgreSQL")
+Rel(p_svc, p_db, "SQL", "PostgreSQL")
+Rel(s_svc, s_db, "SQL", "PostgreSQL")
+
+Rel(m_svc, kafka, "movie events", "async")
+Rel(u_svc, kafka, "user events", "async")
+Rel(p_svc, kafka, "payment events", "async")
+Rel(s_svc, kafka, "subscription events", "async")
+
+Rel(kafka, m_svc, "subscribe: user events", "async")
+Rel(kafka, s_svc, "subscribe: user events", "async")
+Rel(kafka, s_svc, "subscribe: payment events", "async")
+
+Rel(api, rec, "Get recommendations", "HTTP/REST")
+Rel(p_svc, pg, "Process payments", "HTTPS/REST")
+
+@enduml
